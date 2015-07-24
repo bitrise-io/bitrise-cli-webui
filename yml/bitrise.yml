@@ -1,0 +1,51 @@
+format_version: 1.0.0
+app:
+  environments:
+  - BITRISE_PROJECT_TITLE: BitriseCLI
+    opts:
+        is_expand: no
+  - BITRISE_DEV_BRANCH: master
+    opts:
+        is_expand: no
+workflows:
+
+  test:
+    steps:
+    - https://bitbucket.org/bitrise-team/bitrise-new-steps-spec::script@0.9.0:
+        title: Running the TEST script
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -v
+            bash ./_scripts/common/test.sh
+
+  install:
+    steps:
+    - https://bitbucket.org/bitrise-team/bitrise-new-steps-spec::script@0.9.0:
+        title: Running go install
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -v
+            set -e
+            go install
+
+  install-tools:
+    steps:
+    - https://bitbucket.org/bitrise-team/bitrise-new-steps-spec::script@0.9.0:
+        title: Running go install on other tools
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -v
+            set -e
+            bash ./_scripts/go_install_tools.sh
+    - https://bitbucket.org/bitrise-team/bitrise-new-steps-spec::script@0.9.0:
+        title: Running go install on bitrise-cli
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -v
+            set -e
+            godep restore
+            go install

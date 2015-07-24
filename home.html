@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Chat Example</title>
+<script type="text/javascript" src="/node_modules/yamljs/dist/yaml.min.js"></script>
+<script type="text/javascript">
+    var conn;
+    var msg;
+    var log;
+    var sel;
+
+    function initElements(){
+        msg = document.getElementById("msg");
+        log = document.getElementById("log");
+        sel = document.getElementById("sel");
+    }
+
+    function createMessageElement(msg){
+        var d = document.createElement("div");
+        d.innerHTML = msg;
+        return d;
+    }
+
+    function loadOptions(workflows){
+        for (var i in workflows){
+          var option = document.createElement("option");
+          option.text = workflows[i];
+          sel.add(option);
+        }
+    }
+
+    function initWorkflows(workflows){
+        // var bitriseData= {"FormatVersion":"0.2523","Workflows":[{test:10}, {init:20}, {master:30}]};
+        // YAML.load('/yml/bitrise.yml', function(result)
+        //  {
+        //      bitriseData = result;
+        //      workflows = Object.keys(bitriseData.workflows);
+        //      loadOptions();
+        //  });
+
+        loadOptions(workflows);
+    }
+
+    function send(msg){
+        if (!conn) {
+            return false;
+        }
+        if (msg=="") {
+            return false;
+        }
+        var message = {"type":"text","msg":msg};
+        conn.send(message);
+        //msg.value="";
+        return false
+    }
+
+    function appendLog(msg) {
+        console.log(msg);
+        var d = log;
+        var doScroll = d.scrollTop == d.scrollHeight - d.clientHeight;
+        log.appendChild(msg)
+        if (doScroll) {
+            d.scrollTop = d.scrollHeight - d.clientHeight;
+        }
+    }
+
+    function initConnection(){
+        if (window["WebSocket"]) {
+            conn = new WebSocket("ws://{{$}}/ws");
+            conn.onopen = function (){
+                conn.send('{"type":"init","msg":""}');
+            }
+            conn.onclose = function(evt) {
+                appendLog(createMessageElement("<b>Connection closed.</b>"));
+                log.value += "\n Connection closed."
+            }
+            conn.onmessage = function(evt) {
+                var message = JSON.parse(evt.data);
+                if(message.type==="init"){
+                  initWorkflows(message.msg);
+                }
+                else{
+                  //appendLog(createMessageElement((evt.data)));
+                  log.value +=  message.msg;
+                }
+            }
+
+        } else {
+            appendLog(createMessageElement("<b>Your browser does not support WebSockets.</b>"));
+        }
+    }
+
+    window.onload = function() {
+      initElements();
+      initConnection();
+    };
+
+</script>
+<style type="text/css">
+html {
+    overflow: hidden;
+}
+
+body {
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: gray;
+}
+
+#log {
+    background: white;
+    margin: 0;
+    padding: 0.5em 0.5em 0.5em 0.5em;
+    position: absolute;
+    top: 1.5em;
+    left: 0.5em;
+    right: 1.5em;
+    bottom: 4em;
+    width:90%;
+    overflow: auto;
+}
+
+#form {
+    padding: 0 0.5em 0 0.5em;
+    margin: 0;
+    position: absolute;
+    bottom: 1em;
+    left: 0px;
+    width: 100%;
+    overflow: hidden;
+}
+
+</style>
+</head>
+<body>
+select workflow: <select id="sel">
+</select>
+<textarea id="log" disabled></textarea>
+<form id="form">
+    <input type="button" onclick="send('build')" value="Build" />
+    <input type="button" onclick="send('abort')" value="Abort" />
+</form>
+</body>
+</html>
