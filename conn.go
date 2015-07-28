@@ -5,17 +5,32 @@
 package main
 
 import (
-	//"fmt"
+	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"time"
 )
 
-// Message ...
-type Message struct {
+// initMessage ...
+type initMessage struct {
 	Type string   `json:"type"`
 	Msg  []string `json:"msg"`
+}
+
+//Message ...
+type Message struct {
+	Type string `json:"type"`
+	Msg  string `json:"msg"`
+}
+
+func sendMessage(Type string, msg string) {
+	var m = &Message{}
+	m.Type = Type
+	m.Msg = msg
+	byteArr, err := json.Marshal(m)
+	printError("Json encoding:", err)
+	h.broadcast <- byteArr
 }
 
 const (
@@ -60,15 +75,18 @@ func (c *connection) readPump() {
 		if err != nil {
 			break
 		}
-		if string(message) != "build" && string(message) != "abort" {
+		//handle messages
+		var dat = &Message{}
+		json.Unmarshal(message, &dat)
+		if dat.Type == "init" {
+			message = readYAMLToBytes()
 			h.broadcast <- message
-		}
-		if string(message) == "build" && !testRunning {
-			testRunning = true
-			go runCommand(c)
-		}
-		if string(message) == "abort" && testRunning {
-			abort <- string(message)
+		} else if dat.Type == "build" && !testRunning {
+			go runCommand(c, dat.Msg)
+			sendMessage("info", "$bitrise-cli run "+dat.Msg+"\n")
+		} else if dat.Type == "abort" && testRunning {
+			abort <- "Aborting build"
+			sendMessage("info", "Aborting build\n")
 		}
 	}
 }
@@ -107,7 +125,8 @@ func (c *connection) writePump() {
 
 func (c *connection) sendHistory() {
 	for _, val := range history {
-		c.send <- val
+		//c.send <- val
+		sendMessage("info", (string)(val))
 		time.Sleep(time.Millisecond * 1)
 	}
 }

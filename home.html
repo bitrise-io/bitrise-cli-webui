@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <title>Chat Example</title>
-<script type="text/javascript" src="/node_modules/yamljs/dist/yaml.min.js"></script>
 <script type="text/javascript">
     var conn;
     var msg;
@@ -30,6 +29,8 @@
     }
 
     function initWorkflows(workflows){
+        ////////////////
+        //Manual read///
         // var bitriseData= {"FormatVersion":"0.2523","Workflows":[{test:10}, {init:20}, {master:30}]};
         // YAML.load('/yml/bitrise.yml', function(result)
         //  {
@@ -40,17 +41,20 @@
 
         loadOptions(workflows);
     }
-
-    function send(msg){
+    function clearLog() {
+      log.value="";
+    }
+    function send(type){
+        var msg = sel.selectedOptions[0].value;
         if (!conn) {
             return false;
         }
         if (msg=="") {
             return false;
         }
-        var message = {"type":"text","msg":msg};
-        conn.send(message);
-        //msg.value="";
+        var message = {"type":type,"msg":msg};
+        conn.send(JSON.stringify(message));
+        console.log(message)
         return false
     }
 
@@ -81,7 +85,10 @@
                 }
                 else{
                   //appendLog(createMessageElement((evt.data)));
-                  log.value +=  message.msg;
+                  console.log(message.msg);
+                  //log.value +=  message.msg;
+                  log.value+= message.msg;
+                  log.scrollTop = log.scrollHeight;
                 }
             }
 
@@ -121,6 +128,7 @@ body {
     bottom: 4em;
     width:90%;
     overflow: auto;
+    font-family:monospace;
 }
 
 #form {
@@ -140,8 +148,9 @@ select workflow: <select id="sel">
 </select>
 <textarea id="log" disabled></textarea>
 <form id="form">
-    <input type="button" onclick="send('build')" value="Build" />
-    <input type="button" onclick="send('abort')" value="Abort" />
+  <input type="button" onclick="send('build')" value="Build" />
+  <input type="button" onclick="send('abort')" value="Abort" />
+  <input type="button" onclick="clearLog()" value="Clear log" />
 </form>
 </body>
 </html>

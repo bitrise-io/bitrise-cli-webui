@@ -6,17 +6,16 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
-	// "github.com/gorilla/websocket"
-	"encoding/json"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"log"
+
 	"net/http"
-	"os"
+	//"os"
 	"os/exec"
-	"strings"
+	"syscall"
 	"text/template"
 	"time"
 )
@@ -29,36 +28,32 @@ var abort = make(chan string, 1)
 var randomBytes = bytes.Buffer{}
 var history [][]byte
 
-var workflowData = &Workflows{}
-
 //Workflows ...
 type Workflows struct {
 	FormatVersion string                 `json:"format_version" yaml:"format_version"`
 	Workflows     map[string]interface{} `json:"workflows" yaml:"workflows"`
 }
 
-func readYAML() []byte {
-	source, err := ioutil.ReadFile("./yml/bitrise.yml")
-	if err != nil {
-		panic(err)
-	}
+func readYAMLToBytes() []byte {
+	var workflowData = &Workflows{}
+	source, err := ioutil.ReadFile("./bitrise.yml")
+	printError("File read error:", err)
 	err = yaml.Unmarshal(source, &workflowData)
-	if err != nil {
-		panic(err)
-	}
+	printError("Json parse:", err)
 	//fmt.Printf("%#v", workflowData)
 	var wfs []string
 
 	for k := range workflowData.Workflows {
-		fmt.Println(len(wfs))
 		wfs = append(wfs, k)
 	}
-	var message = Message{}
+	var message = initMessage{}
 	message.Msg = wfs
 	message.Type = "init"
 	m, err := json.Marshal(&message)
+	printError("Json encoding:", err)
 	return m
 }
+
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", 405)
@@ -68,47 +63,48 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	homeTempl.Execute(w, r.Host)
 }
 
-func printCommand(cmd *exec.Cmd) {
-	fmt.Printf("==> Executing: %s\n", strings.Join(cmd.Args, " "))
-}
-
-func printError(err error) {
+func printError(from string, err error) {
 	if err != nil {
-		os.Stderr.WriteString(fmt.Sprintf("==> Error: %s\n", err.Error()))
+		fmt.Println(from, err.Error())
 	}
 }
 
-func printOutput(outs []byte) {
-	if len(outs) > 0 {
-		fmt.Printf("%s\n", string(outs))
+//KillGroupProcess ...
+func KillGroupProcess(cmd *exec.Cmd) {
+	pgid, err := syscall.Getpgid(cmd.Process.Pid)
+	if err == nil {
+		syscall.Kill(-pgid, 15)
+		sendMessage("info", "Run aborted\n")
 	}
 }
 
-func runCommand(c *connection) {
+func runCommand(c *connection, workflowName string) {
 	fmt.Println("Process started")
-	cmd = exec.Command("go", "run", "./command/test.go")
-	//cmd = exec.Command("sleep", "30")
+	cmd = exec.Command("bitrise-cli", "run", workflowName)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	prevBytes := bytes.Buffer{}
 	randomBytes = bytes.Buffer{}
-	//allBytes := &bytes.Buffer{}
 	cmd.Stdout = &randomBytes
+	cmd.Stderr = &randomBytes
+	testRunning = true
 
 	// Start 	command asynchronously
 	err := cmd.Start()
-	printError(err)
-	fmt.Println(cmd.Process.Pid)
+	printError("Command start:", err)
+
+	var dat = &Message{}
+	dat.Type = "info"
 	// Create a ticker that outputs elapsed time
 	ticker := time.NewTicker(time.Millisecond * 500)
 	go func(ticker *time.Ticker) {
 		for _ = range ticker.C {
 			r := bytes.TrimPrefix(randomBytes.Bytes(), prevBytes.Bytes())
 			prevBytes = randomBytes
-			//printOutput(r)
-			// if err := c.write(websocket.TextMessage, (r)); err != nil {
-			// 	return
-			// }
 			history = append(history, r)
-			h.broadcast <- (r)
+			dat.Msg = (string)(r)
+			m, err := json.Marshal(&dat)
+			printError("json encode:", err)
+			h.broadcast <- (m)
 		}
 	}(ticker)
 
@@ -120,18 +116,15 @@ func runCommand(c *connection) {
 	select {
 	case <-abort:
 		fmt.Println("abort")
-		if err := cmd.Process.Signal(os.Kill); err != nil {
-			log.Fatal("failed to kill: ", err)
-		}
+		KillGroupProcess(cmd)
 		<-done // allow goroutine to exit
 	case err := <-done:
-		if err != nil {
-			log.Printf("process done with error = %v", err)
-		}
+		printError("Process error:", err)
 	}
 
 	testRunning = false
-	fmt.Println("Process finished")
+	// fmt.Println("Process finished")
+	// sendMessage("info", "Process finished\n")
 	time.Sleep(time.Second)
 	ticker.Stop()
 }
@@ -143,14 +136,12 @@ func main() {
 
 	fileServer := http.StripPrefix("/node_modules/", http.FileServer(http.Dir("node_modules")))
 	http.Handle("/node_modules/", fileServer)
-	fileServer = http.StripPrefix("/yml/", http.FileServer(http.Dir("yml")))
-	http.Handle("/yml/", fileServer)
+	//	fileServer = http.StripPrefix("/yml/", http.FileServer(http.Dir("yml")))
+	//http.Handle("/yml/", fileServer)
 
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", serveWs)
 
 	err := http.ListenAndServe(*addr, nil)
-	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
-	}
+	printError("ListenAndServe:", err)
 }

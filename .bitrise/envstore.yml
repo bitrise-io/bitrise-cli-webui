@@ -1,0 +1,10 @@
+envs:
+- content: |
+    #!/bin/bash
+    set -v
+    echo "futyi"
+  is_expand: "false"
+- is_expand: "false"
+  runner_bin: /bin/bash
+- is_debug: "no"
+  is_expand: "false"

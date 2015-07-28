@@ -4,10 +4,6 @@
 
 package main
 
-import (
-	"encoding/json"
-)
-
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
@@ -32,9 +28,7 @@ var h = hub{
 	unregister:  make(chan *connection),
 	connections: make(map[*connection]bool),
 }
-var dat = &Message{}
 
-//https://gobyexample.com/json
 func (h *hub) run() {
 	for {
 		select {
@@ -46,11 +40,6 @@ func (h *hub) run() {
 				close(c.send)
 			}
 		case m := <-h.broadcast:
-			json.Unmarshal(m, &dat)
-			if dat.Type == "init" {
-				m = readYAML()
-			}
-
 			for c := range h.connections {
 				select {
 				case c.send <- m:
