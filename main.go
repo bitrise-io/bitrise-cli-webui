@@ -9,15 +9,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
-
 	"net/http"
-	//"os"
 	"os/exec"
 	"syscall"
 	"text/template"
 	"time"
+
+	bitrise "github.com/bitrise-io/bitrise-cli/bitrise"
+	env "github.com/bitrise-io/stepman/models"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
@@ -34,21 +33,46 @@ type Workflows struct {
 	Workflows     map[string]interface{} `json:"workflows" yaml:"workflows"`
 }
 
-func readYAMLToBytes() []byte {
-	var workflowData = &Workflows{}
-	source, err := ioutil.ReadFile("./bitrise.yml")
-	printError("File read error:", err)
-	err = yaml.Unmarshal(source, &workflowData)
-	printError("Json parse:", err)
-	//fmt.Printf("%#v", workflowData)
-	var wfs []string
+func mapStringInterfaceToKeyValue(e env.EnvironmentItemModel) {
+	fmt.Printf("futyi")
+	for key, value := range e {
+		fmt.Println(" apadlova Key:", key, "Value:", value)
+	}
+}
 
-	for k := range workflowData.Workflows {
-		wfs = append(wfs, k)
+func readYAMLToBytes() []byte {
+	// var workflowData = &Workflows{}
+	// source, err := ioutil.ReadFile("./bitrise.yml")
+	// printError("File read error:", err)
+	// err = yaml.Unmarshal(source, &workflowData)
+	// printError("Json parse:", err)
+
+	bitriseConfig, err := bitrise.ReadBitriseConfig("./bitrise.yml")
+	if err != nil {
+		fmt.Println(bitriseConfig)
+	}
+	bitriseConfig.Normalize()
+	bitriseConfig.Validate()
+	bitriseConfig.FillMissingDeafults()
+	//fmt.Printf("%#v", bitriseConfig)
+	// for k := range workflowData.Workflows {
+	// 	wfs = append(wfs, k)
+	// }
+	// var message = initMessage{}
+	// message.Msg = wfs
+	// message.Type = "init"
+	// m, err := json.Marshal(&message)
+	// printError("Json encoding:", err)
+	// return m
+	for _, value := range bitriseConfig.App.Environments {
+		mapStringInterfaceToKeyValue(value)
 	}
 	var message = initMessage{}
-	message.Msg = wfs
+	var a []env.EnvironmentItemModel
+	bitriseConfig.App.Environments = a
+	message.Msg = bitriseConfig
 	message.Type = "init"
+
 	m, err := json.Marshal(&message)
 	printError("Json encoding:", err)
 	return m
@@ -70,7 +94,7 @@ func printError(from string, err error) {
 }
 
 //KillGroupProcess ...
-func KillGroupProcess(cmd *exec.Cmd) {
+func killGroupProcess(cmd *exec.Cmd) {
 	pgid, err := syscall.Getpgid(cmd.Process.Pid)
 	if err == nil {
 		syscall.Kill(-pgid, 15)
@@ -88,13 +112,12 @@ func runCommand(c *connection, workflowName string) {
 	cmd.Stderr = &randomBytes
 	testRunning = true
 
-	// Start 	command asynchronously
 	err := cmd.Start()
 	printError("Command start:", err)
 
 	var dat = &Message{}
 	dat.Type = "info"
-	// Create a ticker that outputs elapsed time
+
 	ticker := time.NewTicker(time.Millisecond * 500)
 	go func(ticker *time.Ticker) {
 		for _ = range ticker.C {
@@ -108,7 +131,6 @@ func runCommand(c *connection, workflowName string) {
 		}
 	}(ticker)
 
-	// Only proceed once the process has finished
 	done := make(chan error, 1)
 	go func() {
 		done <- cmd.Wait()
@@ -116,15 +138,12 @@ func runCommand(c *connection, workflowName string) {
 	select {
 	case <-abort:
 		fmt.Println("abort")
-		KillGroupProcess(cmd)
-		<-done // allow goroutine to exit
+		killGroupProcess(cmd)
+		<-done
 	case err := <-done:
 		printError("Process error:", err)
 	}
-
 	testRunning = false
-	// fmt.Println("Process finished")
-	// sendMessage("info", "Process finished\n")
 	time.Sleep(time.Second)
 	ticker.Stop()
 }
@@ -134,14 +153,9 @@ func main() {
 	flag.Parse()
 	go h.run()
 
-	fileServer := http.StripPrefix("/node_modules/", http.FileServer(http.Dir("node_modules")))
-	http.Handle("/node_modules/", fileServer)
-	//	fileServer = http.StripPrefix("/yml/", http.FileServer(http.Dir("yml")))
-	//http.Handle("/yml/", fileServer)
-
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", serveWs)
-
+	fmt.Println("Starting bitrise-cli-webui at http://localhost:8080")
 	err := http.ListenAndServe(*addr, nil)
 	printError("ListenAndServe:", err)
 }

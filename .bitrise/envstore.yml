@@ -2,7 +2,8 @@ envs:
 - content: |
     #!/bin/bash
     set -v
-    echo "futyi"
+    set -e
+    bash ./_scripts/go_install_tools.sh
   is_expand: "false"
 - is_expand: "false"
   runner_bin: /bin/bash

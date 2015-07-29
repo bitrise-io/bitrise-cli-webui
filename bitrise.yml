@@ -1,7 +1,7 @@
 format_version: 1.0.0
 default_step_lib_source: "https://bitbucket.org/bitrise-team/bitrise-new-steps-spec"
 app:
-  environments:
+  envs:
   - BITRISE_PROJECT_TITLE: BitriseCLI
     opts:
         is_expand: no

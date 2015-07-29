@@ -20,27 +20,40 @@
         return d;
     }
 
-    function loadOptions(workflows){
+    function loadWorkflowDropdownList(workflows){
         for (var i in workflows){
           var option = document.createElement("option");
           option.text = workflows[i];
           sel.add(option);
         }
     }
-
-    function initWorkflows(workflows){
-        ////////////////
-        //Manual read///
-        // var bitriseData= {"FormatVersion":"0.2523","Workflows":[{test:10}, {init:20}, {master:30}]};
-        // YAML.load('/yml/bitrise.yml', function(result)
-        //  {
-        //      bitriseData = result;
-        //      workflows = Object.keys(bitriseData.workflows);
-        //      loadOptions();
-        //  });
-
-        loadOptions(workflows);
+    function  parsingWorkflowNamesIntoArray(bitrise){
+      var ret=[];
+      for (var k in bitrise['workflows']){
+        ret.push(k);
+      }
+      return ret;
     }
+    function  loadAppEnvs(app){
+      for (var k in app){
+          // document.createElement();
+      }
+    }
+    function loadWorkflowEnvs(workflows){
+
+    }
+    function loadEnvs(bitrise){
+      loadAppEnvs(bitrise.app);
+      loadWorkflowEnvs(bitrise.workflows);
+    }
+    function initConfig (bitrise){
+      //workflows
+      var workflows = parsingWorkflowNamesIntoArray(bitrise);
+      loadWorkflowDropdownList(workflows);
+      //envlist
+      loadEnvs(bitrise);
+    }
+
     function clearLog() {
       log.value="";
     }
@@ -54,7 +67,7 @@
         }
         var message = {"type":type,"msg":msg};
         conn.send(JSON.stringify(message));
-        console.log(message)
+        console.log(message);
         return false
     }
 
@@ -79,9 +92,11 @@
                 log.value += "\n Connection closed."
             }
             conn.onmessage = function(evt) {
+                console.log(evt);
                 var message = JSON.parse(evt.data);
                 if(message.type==="init"){
-                  initWorkflows(message.msg);
+                  console.log(evt.data);
+                  initConfig(message.msg);
                 }
                 else{
                   //appendLog(createMessageElement((evt.data)));
@@ -117,20 +132,35 @@ body {
     background: gray;
 }
 
+
 #log {
     background: white;
     margin: 0;
-    padding: 0.5em 0.5em 0.5em 0.5em;
+
     position: absolute;
     top: 1.5em;
     left: 0.5em;
-    right: 1.5em;
+    right: 50%;
     bottom: 4em;
-    width:90%;
+    width:50%;
     overflow: auto;
     font-family:monospace;
 }
+#envlist{
+  background: white;
+      margin: -2px 0px -7px 15px;
 
+  position: absolute;
+  padding:2px;
+  border:1px;
+  top: 1.5em;
+  left: 50%;
+  right: 0.5em;
+  bottom: 4em;
+  width:49%;
+  overflow: auto;
+  font-family:monospace;
+}
 #form {
     padding: 0 0.5em 0 0.5em;
     margin: 0;
@@ -146,7 +176,12 @@ body {
 <body>
 select workflow: <select id="sel">
 </select>
-<textarea id="log" disabled></textarea>
+  <textarea id="log" disabled></textarea>
+  <div id="envlist">
+    <div id=app>
+      <p>app</p>
+    </div>
+  </div>
 <form id="form">
   <input type="button" onclick="send('build')" value="Build" />
   <input type="button" onclick="send('abort')" value="Abort" />

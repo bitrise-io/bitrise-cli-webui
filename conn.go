@@ -6,16 +6,18 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"time"
+
+	models "github.com/bitrise-io/bitrise-cli/models/models_1_0_0"
+	"github.com/gorilla/websocket"
 )
 
 // initMessage ...
 type initMessage struct {
-	Type string   `json:"type"`
-	Msg  []string `json:"msg"`
+	Type string                  `json:"type"`
+	Msg  models.BitriseDataModel `json:"msg"`
 }
 
 //Message ...
@@ -147,5 +149,4 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	go c.writePump()
 	c.sendHistory()
 	c.readPump()
-
 }
