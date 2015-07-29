@@ -9,14 +9,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	bitrise "github.com/bitrise-io/bitrise-cli/bitrise"
+	//models "github.com/bitrise-io/bitrise-cli/models/models_1_0_0"
+	env "github.com/bitrise-io/stepman/models"
 	"net/http"
 	"os/exec"
 	"syscall"
 	"text/template"
 	"time"
-
-	bitrise "github.com/bitrise-io/bitrise-cli/bitrise"
-	env "github.com/bitrise-io/stepman/models"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
@@ -41,38 +41,13 @@ func mapStringInterfaceToKeyValue(e env.EnvironmentItemModel) {
 }
 
 func readYAMLToBytes() []byte {
-	// var workflowData = &Workflows{}
-	// source, err := ioutil.ReadFile("./bitrise.yml")
-	// printError("File read error:", err)
-	// err = yaml.Unmarshal(source, &workflowData)
-	// printError("Json parse:", err)
-
 	bitriseConfig, err := bitrise.ReadBitriseConfig("./bitrise.yml")
-	if err != nil {
-		fmt.Println(bitriseConfig)
-	}
 	bitriseConfig.Normalize()
 	bitriseConfig.Validate()
 	bitriseConfig.FillMissingDeafults()
-	//fmt.Printf("%#v", bitriseConfig)
-	// for k := range workflowData.Workflows {
-	// 	wfs = append(wfs, k)
-	// }
-	// var message = initMessage{}
-	// message.Msg = wfs
-	// message.Type = "init"
-	// m, err := json.Marshal(&message)
-	// printError("Json encoding:", err)
-	// return m
-	for _, value := range bitriseConfig.App.Environments {
-		mapStringInterfaceToKeyValue(value)
-	}
 	var message = initMessage{}
-	var a []env.EnvironmentItemModel
-	bitriseConfig.App.Environments = a
 	message.Msg = bitriseConfig
 	message.Type = "init"
-
 	m, err := json.Marshal(&message)
 	printError("Json encoding:", err)
 	return m

@@ -9,8 +9,14 @@ app:
     opts:
         is_expand: no
 workflows:
-
   test:
+    envs:
+    - test: test
+      opts:
+          is_expand: no
+    - BITRISE_DEV_BRANCH: master
+      opts:
+        is_expand: no
     steps:
     - https://bitbucket.org/bitrise-team/bitrise-new-steps-spec::script@0.9.0:
         title: Running the TEST script
@@ -21,6 +27,13 @@ workflows:
             echo "futyi"
 
   install:
+    envs:
+    - install: install
+      opts:
+          is_expand: no
+    - BITRISE_DEV_BRANCH: master
+      opts:
+          is_expand: no
     steps:
     - https://bitbucket.org/bitrise-team/bitrise-new-steps-spec::script@0.9.0:
         title: Running go install
@@ -32,8 +45,17 @@ workflows:
             echo "intall keves futyi"
             echo "apad egy neger lo"
             sleep 60
+        - kisfasz : |
+            mindenkinek kicsi a pocse
 
   install-tools:
+    envs:
+    - install-tools: install-tools
+      opts:
+          is_expand: no
+    - BITRISE_DEV_BRANCH: master
+      opts:
+          is_expand: no
     steps:
     - script@0.9.0:
         title: Running go install on other tools
