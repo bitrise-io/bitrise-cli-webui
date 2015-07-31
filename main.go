@@ -5,122 +5,47 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
+	//"bytes"
 	"flag"
 	"fmt"
-	bitrise "github.com/bitrise-io/bitrise-cli/bitrise"
-	//models "github.com/bitrise-io/bitrise-cli/models/models_1_0_0"
-	env "github.com/bitrise-io/stepman/models"
 	"net/http"
-	"os/exec"
-	"syscall"
+	//"os/exec"
+	"log"
 	"text/template"
-	"time"
 )
 
-var addr = flag.String("addr", ":8080", "http service address")
-var homeTempl = template.Must(template.ParseFiles("home.html"))
-var testRunning = false
-var cmd *exec.Cmd
-var abort = make(chan string, 1)
-var randomBytes = bytes.Buffer{}
-var history [][]byte
+var (
+	addr      = flag.String("addr", ":8080", "http service address")
+	homeTempl = template.Must(template.ParseFiles("home.html"))
+)
 
-//Workflows ...
-type Workflows struct {
-	FormatVersion string                 `json:"format_version" yaml:"format_version"`
-	Workflows     map[string]interface{} `json:"workflows" yaml:"workflows"`
-}
-
-func mapStringInterfaceToKeyValue(e env.EnvironmentItemModel) {
-	fmt.Printf("futyi")
-	for key, value := range e {
-		fmt.Println(" apadlova Key:", key, "Value:", value)
-	}
-}
-
-func readYAMLToBytes() []byte {
-	bitriseConfig, err := bitrise.ReadBitriseConfig("./bitrise.yml")
-	bitriseConfig.Normalize()
-	bitriseConfig.Validate()
-	bitriseConfig.FillMissingDeafults()
-	var message = initMessage{}
-	message.Msg = bitriseConfig
-	message.Type = "init"
-	m, err := json.Marshal(&message)
-	printError("Json encoding:", err)
-	return m
-}
-
+// Handle http
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", 405)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	homeTempl.Execute(w, r.Host)
+	err := homeTempl.Execute(w, r.Host)
+	printError("Template Execute :", err)
 }
 
-func printError(from string, err error) {
+// serverWs handles websocket requests from the peer.
+func serveWs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
+	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		fmt.Println(from, err.Error())
+		log.Println(err)
+		return
 	}
-}
-
-//KillGroupProcess ...
-func killGroupProcess(cmd *exec.Cmd) {
-	pgid, err := syscall.Getpgid(cmd.Process.Pid)
-	if err == nil {
-		syscall.Kill(-pgid, 15)
-		sendMessage("info", "Run aborted\n")
-	}
-}
-
-func runCommand(c *connection, workflowName string) {
-	fmt.Println("Process started")
-	cmd = exec.Command("bitrise-cli", "run", workflowName)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	prevBytes := bytes.Buffer{}
-	randomBytes = bytes.Buffer{}
-	cmd.Stdout = &randomBytes
-	cmd.Stderr = &randomBytes
-	testRunning = true
-
-	err := cmd.Start()
-	printError("Command start:", err)
-
-	var dat = &Message{}
-	dat.Type = "info"
-
-	ticker := time.NewTicker(time.Millisecond * 500)
-	go func(ticker *time.Ticker) {
-		for _ = range ticker.C {
-			r := bytes.TrimPrefix(randomBytes.Bytes(), prevBytes.Bytes())
-			prevBytes = randomBytes
-			history = append(history, r)
-			dat.Msg = (string)(r)
-			m, err := json.Marshal(&dat)
-			printError("json encode:", err)
-			h.broadcast <- (m)
-		}
-	}(ticker)
-
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-	select {
-	case <-abort:
-		fmt.Println("abort")
-		killGroupProcess(cmd)
-		<-done
-	case err := <-done:
-		printError("Process error:", err)
-	}
-	testRunning = false
-	time.Sleep(time.Second)
-	ticker.Stop()
+	c := &connection{send: make(chan []byte, 256), ws: ws}
+	h.register <- c
+	go c.writePump()
+	c.sendHistory()
+	c.readPump()
 }
 
 func main() {

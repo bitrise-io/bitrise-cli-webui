@@ -12,34 +12,12 @@
     var envlist;
     var b;
 
-    function initElements(){
-        msg = document.getElementById("msg");
-        log = document.getElementById("log");
-        sel = document.getElementById("sel");
-        envlist = document.getElementById("envlist");
-        appEnvlist = document.getElementById("app");
-        workflowsEnvlist = document.getElementById("workflows");
-    }
 
+    //UI
     function createMessageElement(msg){
         var d = document.createElement("div");
         d.innerHTML = msg;
         return d;
-    }
-
-    function loadWorkflowDropdownList(workflows){
-        for (var i in workflows){
-          var option = document.createElement("option");
-          option.text = workflows[i];
-          sel.add(option);
-        }
-    }
-    function  parsingWorkflowNamesIntoArray(bitrise){
-      var ret=[];
-      for (var k in bitrise['workflows']){
-        ret.push(k);
-      }
-      return ret;
     }
 
     function createEnvUiElement(key,val){
@@ -105,6 +83,41 @@
       }
       return cont;
     }
+    //utils
+    function keepFirstChildOnly(elem){
+      while (elem.children[0]  != elem.lastChild){
+        elem.removeChild(elem.lastChild);
+      }
+    }
+
+    function clearLog() {
+      log.value="";
+    }
+    function appendLog(msg) {
+        console.log(msg);
+        var d = log;
+        var doScroll = d.scrollTop == d.scrollHeight - d.clientHeight;
+        log.appendChild(msg)
+        if (doScroll) {
+            d.scrollTop = d.scrollHeight - d.clientHeight;
+        }
+    }
+    function  parsingWorkflowNamesIntoArray(bitrise){
+      var ret=[];
+      for (var k in bitrise['workflows']){
+        ret.push(k);
+      }
+      return ret;
+    }
+
+    //init
+    function loadWorkflowDropdownList(workflows){
+        for (var i in workflows){
+          var option = document.createElement("option");
+          option.text = workflows[i];
+          sel.add(option);
+        }
+    }
     function loadStepEnvs(steps,container){
       var c = createEnvUiContainer("stepEnvContainer","Steps");
       for (var i in steps){
@@ -142,7 +155,7 @@
               if (n == "description"){
                 optsElem.appendChild (createEnvUiSpanTextareaElement(n,opts[n]));
               }
-              if (opts[n] == false || opts[n] == true ){
+              else if (opts[n] == false || opts[n] == true ){
                 optsElem.appendChild (createEnvUiSpanSelectElement(n,opts[n]));
               }
               else{
@@ -169,11 +182,7 @@
         }
       }
     }
-    function keepFirstChildOnly(elem){
-      while (elem.children[0]  != elem.lastChild){
-        elem.removeChild(elem.lastChild);
-      }
-    }
+
     function initEnvlistElements(){
       keepFirstChildOnly(appEnvlist);
       keepFirstChildOnly(workflowsEnvlist);
@@ -189,37 +198,18 @@
       var workflows = parsingWorkflowNamesIntoArray(bitrise);
       loadWorkflowDropdownList(workflows);
       //envlist
-
       loadAllEnvs(bitrise);
     }
 
-    function clearLog() {
-      log.value="";
-    }
-    function send(type){
-        var msg = sel.selectedOptions[0].value;
-        if (!conn) {
-            return false;
-        }
-        if (msg=="") {
-            return false;
-        }
-        var message = {"type":type,"msg":msg};
-        conn.send(JSON.stringify(message));
-        console.log(message);
-        return false
-    }
 
-    function appendLog(msg) {
-        console.log(msg);
-        var d = log;
-        var doScroll = d.scrollTop == d.scrollHeight - d.clientHeight;
-        log.appendChild(msg)
-        if (doScroll) {
-            d.scrollTop = d.scrollHeight - d.clientHeight;
-        }
+    function initElements(){
+        msg = document.getElementById("msg");
+        log = document.getElementById("log");
+        sel = document.getElementById("sel");
+        envlist = document.getElementById("envlist");
+        appEnvlist = document.getElementById("app");
+        workflowsEnvlist = document.getElementById("workflows");
     }
-
     function initConnection(){
         if (window["WebSocket"]) {
             conn = new WebSocket("ws://{{$}}/ws");

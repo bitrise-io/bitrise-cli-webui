@@ -20,8 +20,6 @@ type hub struct {
 	unregister chan *connection
 }
 
-// Workflows ...
-
 var h = hub{
 	broadcast:   make(chan []byte),
 	register:    make(chan *connection),

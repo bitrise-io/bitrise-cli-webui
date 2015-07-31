@@ -1,4 +1,12 @@
 envs:
+- BITRISE_PROJECT_TITLE: BitriseCLI
+  is_expand: "false"
+- BITRISE_DEV_BRANCH: master
+  is_expand: "false"
+- install-tools: install-tools
+  is_expand: "false"
+- BITRISE_DEV_BRANCH: master
+  is_expand: "false"
 - content: |
     #!/bin/bash
     set -v
