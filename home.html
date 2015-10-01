@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Chat Example</title>
+<script type="text/javascript">
+    var conn;
+    var msg;
+    var log;
+    var sel;
+    var appEnvlist;
+    var workflowsEnvlist;
+    var envlist;
+    var b;
+
+
+    //UI
+    function createMessageElement(msg){
+        var d = document.createElement("div");
+        d.innerHTML = msg;
+        return d;
+    }
+
+    function createEnvUiElement(key,val){
+      var cont = document.createElement("div");
+      cont.className= "defaultContainer";
+      var k = document.createElement("span");
+      k.innerHTML = key;
+      var v = document.createElement("span");
+      v.innerHTML = val;
+      cont.appendChild(k);
+      cont.appendChild(v);
+      return cont;
+    }
+
+    function createEnvUiSpanSelectElement(key,val){
+      var cont = document.createElement("div");
+      var k = document.createElement("span");
+      k.innerHTML = key;
+      var v = document.createElement("select");
+      v.value = val;
+      var optionFalse = document.createElement("option");
+      optionFalse.text = "false";
+      optionFalse.value = false;
+      var optionTrue = document.createElement("option");
+      optionTrue.text = "true";
+      optionTrue.value = true;
+      v.add(optionFalse);
+      v.add(optionTrue);
+      var selectedOpt = (val==false)?optionFalse:optionTrue;
+      selectedOpt.selected=true;
+      cont.appendChild(k);
+      cont.appendChild(v);
+      return cont;
+    }
+    function createEnvUiInputInputElement(key,val){
+      var cont = document.createElement("div");
+      var k = document.createElement("input");
+      k.value = key;
+      var v = document.createElement("input");
+      v.value = val;
+      cont.appendChild(k);
+      cont.appendChild(v);
+      return cont;
+    }
+    function createEnvUiSpanTextareaElement(key,val){
+      var cont = document.createElement("div");
+      var k = document.createElement("span");
+      k.innerHTML = key;
+      var v = document.createElement("textarea");
+      v.value = val;
+      cont.appendChild(k);
+      cont.appendChild(v);
+      return cont;
+    }
+
+    function createEnvUiContainer(name,key){
+      var cont = document.createElement("div");
+      cont.className = name;
+      if (key!==undefined){
+        var k = document.createElement("p");
+        k.innerHTML = key;
+        cont.appendChild(k);
+      }
+      return cont;
+    }
+    //utils
+    function keepFirstChildOnly(elem){
+      while (elem.children[0]  != elem.lastChild){
+        elem.removeChild(elem.lastChild);
+      }
+    }
+
+    function clearLog() {
+      log.value="";
+    }
+    function appendLog(msg) {
+        console.log(msg);
+        var d = log;
+        var doScroll = d.scrollTop == d.scrollHeight - d.clientHeight;
+        log.appendChild(msg)
+        if (doScroll) {
+            d.scrollTop = d.scrollHeight - d.clientHeight;
+        }
+    }
+    function  parsingWorkflowNamesIntoArray(bitrise){
+      var ret=[];
+      for (var k in bitrise['workflows']){
+        ret.push(k);
+      }
+      return ret;
+    }
+
+    //init
+    function loadWorkflowDropdownList(workflows){
+        for (var i in workflows){
+          var option = document.createElement("option");
+          option.text = workflows[i];
+          sel.add(option);
+        }
+    }
+    function loadStepEnvs(steps,container){
+      var c = createEnvUiContainer("stepEnvContainer","Steps");
+      for (var i in steps){
+        for (var j in steps[i]){
+          var inputArr = steps[i][j].inputs;
+          var s = createEnvUiContainer("step",j);
+          for(var k in inputArr){
+            var input = inputArr[k];
+            for (var m in input){
+              s.appendChild(createEnvUiSpanTextareaElement(m,input[m]));
+            }
+          }
+        }
+      }
+      c.appendChild(s);
+      container.appendChild(c);
+    }
+    function  loadEnvs(envArr,container){
+      var env = envArr;
+        for (var m in envArr){
+          //console.log(envArr[m]);
+          var c;
+          c = createEnvUiContainer("envContainer");
+          for (var property in envArr[m]) {
+            if (envArr[m].hasOwnProperty(property)) {
+              if (property!="opts"){
+                c.appendChild(createEnvUiInputInputElement(property,envArr[m][property]));
+              }
+            }
+          }
+          var optsElem = createEnvUiContainer("optsContainer","opts");
+          var opts = envArr[m]["opts"];
+          for (var n in opts) {
+            if (opts.hasOwnProperty(n)) {
+              if (n == "description"){
+                optsElem.appendChild (createEnvUiSpanTextareaElement(n,opts[n]));
+              }
+              else if (opts[n] == false || opts[n] == true ){
+                optsElem.appendChild (createEnvUiSpanSelectElement(n,opts[n]));
+              }
+              else{
+              optsElem.appendChild (createEnvUiElement(n,opts[n]));
+              }
+            }
+          }
+          c.appendChild(optsElem);
+          container.appendChild(c);
+        }
+    }
+    function loadWorkflowEnvs(workflows){
+      var envArr;
+      var workflowContainer;
+      for (var k in workflows){
+        if (sel.value ===k){
+          if (workflows.hasOwnProperty(k)) {
+            workflowContainer = createEnvUiContainer(k);
+            envArr = workflows[k].envs;
+            loadEnvs(envArr,workflowContainer);
+            loadStepEnvs(workflows[k].steps,workflowContainer);
+          }
+          workflowsEnvlist.appendChild(workflowContainer);
+        }
+      }
+    }
+
+    function initEnvlistElements(){
+      keepFirstChildOnly(appEnvlist);
+      keepFirstChildOnly(workflowsEnvlist);
+    }
+    function loadAllEnvs(bitrise){
+      b = bitrise;
+      initEnvlistElements();
+      loadEnvs(bitrise.app.envs,appEnvlist);
+      loadWorkflowEnvs(bitrise.workflows);
+    }
+    function initConfig (bitrise){
+      //workflows
+      var workflows = parsingWorkflowNamesIntoArray(bitrise);
+      loadWorkflowDropdownList(workflows);
+      //envlist
+      loadAllEnvs(bitrise);
+    }
+
+
+    function initElements(){
+        msg = document.getElementById("msg");
+        log = document.getElementById("log");
+        sel = document.getElementById("sel");
+        envlist = document.getElementById("envlist");
+        appEnvlist = document.getElementById("app");
+        workflowsEnvlist = document.getElementById("workflows");
+    }
+    function initConnection(){
+        if (window["WebSocket"]) {
+            conn = new WebSocket("ws://{{$}}/ws");
+            conn.onopen = function (){
+                conn.send('{"type":"init","msg":""}');
+            }
+            conn.onclose = function(evt) {
+                appendLog(createMessageElement("<b>Connection closed.</b>"));
+                log.value += "\n Connection closed."
+            }
+            conn.onmessage = function(evt) {
+                //console.log(evt);
+                var message = JSON.parse(evt.data);
+                if(message.type==="init"){
+                  //console.log(evt.data);
+                  initConfig(message.msg);
+                }
+                else{
+                  //appendLog(createMessageElement((evt.data)));
+                  console.log(message.msg);
+                  //log.value +=  message.msg;
+                  log.value+= message.msg;
+                  log.scrollTop = log.scrollHeight;
+                }
+            }
+
+        } else {
+            appendLog(createMessageElement("<b>Your browser does not support WebSockets.</b>"));
+        }
+    }
+
+    window.onload = function() {
+      initElements();
+      initConnection();
+    };
+
+</script>
+<style type="text/css">
+html {
+    overflow: hidden;
+}
+
+body {
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: gray;
+}
+
+
+#log {
+    background: white;
+    margin: 0;
+
+    position: absolute;
+    top: 1.5em;
+    left: 0.5em;
+    right: 50%;
+    bottom: 4em;
+    width:50%;
+    overflow: auto;
+    font-family:monospace;
+}
+#envlist{
+  background: white;
+      margin: -2px 0px -7px 15px;
+
+  position: absolute;
+  padding:2px;
+  border:1px;
+  top: 1.5em;
+  left: 50%;
+  right: 0.5em;
+  bottom: 4em;
+  width:49%;
+  overflow: auto;
+  font-family:monospace;
+}
+
+#form {
+    padding: 0 0.5em 0 0.5em;
+    margin: 0;
+    position: absolute;
+    bottom: 1em;
+    left: 0px;
+    width: 100%;
+    overflow: hidden;
+}
+.optsContainer{
+  margin: 10px;
+}
+.envContainer , .stepEnvContainer,.step, .defaultContainer{
+  margin:10px;
+}
+
+</style>
+</head>
+<body>
+select workflow: <select id="sel" onchange="loadAllEnvs(b)">
+</select>
+  <textarea id="log" disabled></textarea>
+  <div id="envlist">
+    <div id="app">
+      <p>app</p>
+    </div>
+    <div id="workflows">
+      <p>workflow</p>
+    </div>
+  </div>
+<form id="form">
+  <input type="button" onclick="send('build')" value="Build" />
+  <input type="button" onclick="send('abort')" value="Abort" />
+  <input type="button" onclick="clearLog()" value="Clear log" />
+</form>
+</body>
+</html>

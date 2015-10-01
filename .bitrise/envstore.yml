@@ -1,0 +1,19 @@
+envs:
+- BITRISE_PROJECT_TITLE: BitriseCLI
+  is_expand: "false"
+- BITRISE_DEV_BRANCH: master
+  is_expand: "false"
+- install-tools: install-tools
+  is_expand: "false"
+- BITRISE_DEV_BRANCH: master
+  is_expand: "false"
+- content: |
+    #!/bin/bash
+    set -v
+    set -e
+    bash ./_scripts/go_install_tools.sh
+  is_expand: "false"
+- is_expand: "false"
+  runner_bin: /bin/bash
+- is_debug: "no"
+  is_expand: "false"

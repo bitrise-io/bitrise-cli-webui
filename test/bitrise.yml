@@ -1,0 +1,118 @@
+format_version: 1.0.0
+default_step_lib_source: https://bitbucket.org/bitrise-team/bitrise-new-steps-spec
+app:
+  envs:
+  - BITRISE_PROJECT_TITLE: BitriseCLI
+    opts:
+      description: ""
+      is_dont_change_value: false
+      is_expand: false
+      is_required: false
+  - BITRISE_DEV_BRANCH: master
+    opts:
+      description: ""
+      is_dont_change_value: false
+      is_expand: false
+      is_required: false
+workflows:
+  install:
+    title: ""
+    summary: ""
+    before_run: []
+    after_run: []
+    envs:
+    - install: install
+      opts:
+        description: ""
+        is_dont_change_value: false
+        is_expand: false
+        is_required: false
+    - BITRISE_DEV_BRANCH: master
+      opts:
+        description: ""
+        is_dont_change_value: false
+        is_expand: false
+        is_required: false
+    steps:
+    - https://bitbucket.org/bitrise-team/bitrise-new-steps-spec::script@0.9.0:
+        title: Running go install
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -v
+            set -e
+            echo "intall keves futyi"
+            echo "apad egy neger lo"
+            sleep 60
+        - kisfasz: |
+            mindenkinek kicsi a pocse
+  install-tools:
+    title: ""
+    summary: ""
+    before_run: []
+    after_run: []
+    envs:
+    - install-tools: install-tools
+      opts:
+        description: ""
+        is_dont_change_value: false
+        is_expand: false
+        is_required: false
+    - BITRISE_DEV_BRANCH: master
+      opts:
+        description: ""
+        is_dont_change_value: false
+        is_expand: false
+        is_required: false
+    steps:
+    - script@0.9.0:
+        title: Running go install on other tools
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -v
+            set -e
+            bash ./_scripts/go_install_tools.sh
+    - script@0.9.0:
+        title: Running go install on bitrise-cli
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -v
+            set -e
+            godep restore
+            go install
+    - https://bitbucket.org/bitrise-team/bitrise-new-steps-spec::script@0.9.0:
+        title: Running go install on bitrise-cli
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -v
+            set -e
+            echo "meg tobb futyi"
+  test:
+    title: ""
+    summary: ""
+    before_run: []
+    after_run: []
+    envs:
+    - opts:
+        description: ""
+        is_dont_change_value: false
+        is_expand: false
+        is_required: false
+      test: test
+    - BITRISE_DEV_BRANCH: master
+      opts:
+        description: ""
+        is_dont_change_value: false
+        is_expand: false
+        is_required: false
+    steps:
+    - https://bitbucket.org/bitrise-team/bitrise-new-steps-spec::script@0.9.0:
+        title: Running the TEST script
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -v
+            echo "futyi"
